@@ -1,219 +1,224 @@
-import { supabase, supabaseAdmin } from '@/lib/supabase';
-import { response, errorResponse } from '@/utils/response'
-import { uploadImage, deleteImage } from '@/utils/uploadImage';
+import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import type { Member } from "@/lib/types";
+import { deleteImage, imageUrl, uploadImage } from "@/utils/uploadImage";
+import {
+  parsePoints,
+  parseSocialLinks,
+  requireText,
+} from "@/utils/validate";
+import { dalFail, dalOk, isNotFoundError, type DalResult } from "./types";
 
-export const GetMember = async () => {
-    const { data, error } = await supabaseAdmin
-        .from("members")
-        .select("*")
+/**
+ * Data Access Layer tabel `members`.
+ *
+ * Aturan main:
+ *  - BACA data publik memakai client anon (dibatasi Row Level Security).
+ *  - TULIS data memakai service role, karena form-data + upload file tidak bisa
+ *    lewat jalur publik.
+ *  - Kolom `photo_url` di database BERPISI NAMA FILE. Yang keluar dari fungsi
+ *    di sini sudah berupa URL publik siap pakai (lihat `mapMember`).
+ */
 
-    if (error) {
-        return errorResponse(500, error.message)
-    }
-    return response(200, "donebang", data)
+/** Urutan kolom yang dikirim ke frontend — jangan bocorkan apa pun di luar ini. */
+const MEMBER_COLUMNS = "id, name, role, photo_url, social_links, points, created_at";
+
+export function mapMember(row: Member): Member {
+  return { ...row, photo_url: imageUrl(row.photo_url) };
 }
 
-export const GetMemberById = async (id: string) => {
-    const { data, error } = await supabaseAdmin
-        .from('members')
-        .select('*')
-        .eq("id", id)
-        .single()
-    if (error) {
-        return errorResponse(500, error.message)
-    }
-    return response(200, `Detail data member DSC: ${data.name}`, data)
+/** Semua anggota, urut abjad. */
+export async function getAllMembers(): Promise<DalResult<Member[]>> {
+  try {
+    const { data, error } = await supabase
+      .from("members")
+      .select(MEMBER_COLUMNS)
+      .order("name", { ascending: true });
+
+    if (error) return dalFail(error, "Gagal mengambil data anggota");
+    return dalOk(((data ?? []) as Member[]).map(mapMember));
+  } catch (err) {
+    return dalFail(err, "Gagal mengambil data anggota");
+  }
 }
 
-export const PostMember = async (req: Request) => {
-    try {
-        //Request tidak dalam bentuk body.json lagi tapi form-data
-        const formData = await req.formData()
-        const name = formData.get("name") as string;
-        const role = formData.get("role") as string;
-        const photo_url = formData.get("photo_url") as File;
-        const social_links = formData.get("social_links") as string;
-        const points = Number(formData.get("points"));
+export async function getMemberById(id: string): Promise<DalResult<Member>> {
+  try {
+    const { data, error } = await supabase
+      .from("members")
+      .select(MEMBER_COLUMNS)
+      .eq("id", id)
+      .single();
 
-        if (!name || !role) {
-            return errorResponse(400, "kolom nama atau role/jabatan tidak boleh kosong")
-        }
-
-        let fileName = null;
-        if (photo_url instanceof File && photo_url.size > 0) {
-            fileName = await uploadImage(photo_url)
-        }
-
-        const { data, error } = await supabaseAdmin
-            .from('members')
-            .insert({
-                name,
-                role,
-                photo_url: fileName,
-                social_links,
-                points
-            })
-            .select()
-            .single();
-        if (error) {
-            return errorResponse(500, error.message)
-        }
-        return response(200, "Berhasil menambahkan data aggota DSC", data)
-    } catch (error) {
-        console.log(error)
-        return errorResponse(500, "gagal upload gambar")
+    if (isNotFoundError(error)) {
+      return dalFail(new Error("Anggota tidak ditemukan."), "Anggota tidak ditemukan.");
     }
+    if (error) return dalFail(error, "Gagal mengambil detail anggota");
+
+    return dalOk(mapMember(data as Member));
+  } catch (err) {
+    return dalFail(err, "Gagal mengambil detail anggota");
+  }
 }
 
-export const PutMemberByid = async (req: Request, id: string) => {
-    try {
-        const formData = await req.formData();
-        const name = formData.get("name") as string;
-        const role = formData.get("role") as string;
-        const photo = formData.get("photo_url");
-        const social_links = formData.get("social_links") as string;
-        const points = Number(formData.get("points"));
-        const removePhoto = formData.get("remove_photo") === "true";
+export interface MemberInput {
+  name: string;
+  role: string;
+  photo_url: string | null;
+  social_links: Member["social_links"];
+  points: number;
+}
 
-        // 1. Ambil data member lama
-        const { data: oldMember, error: findError } = await supabaseAdmin
-            .from("members")
-            .select("id, photo_url")
-            .eq("id", id)
-            .single();
+/** Membaca FormData menjadi payload tervalidasi. Melempar ValidationError. */
+export function parseMemberFormData(formData: FormData): {
+  payload: Omit<MemberInput, "photo_url">;
+  photoFile: File | null;
+  removePhoto: boolean;
+} {
+  const name = requireText(formData.get("name"), "Nama", { max: 255 });
+  const role = requireText(formData.get("role"), "Jabatan (role)", { max: 255 });
+  const social_links = parseSocialLinks(formData.get("social_links"));
+  const points = parsePoints(formData.get("points"));
 
-        if (findError) {
-            return errorResponse(500, findError.message);
-        }
+  const rawPhoto = formData.get("photo_url") ?? formData.get("photo");
+  const photoFile =
+    rawPhoto instanceof File && rawPhoto.size > 0 ? rawPhoto : null;
+  const removePhoto = String(formData.get("remove_photo") ?? "") === "true";
 
-        if (!oldMember) {
-            return errorResponse(
-                404,
-                "Data member tidak ditemukan!"
-            );
-        }
+  return { payload: { name, role, social_links, points }, photoFile, removePhoto };
+}
 
-        const oldPhoto = oldMember.photo_url;
+/** Menambah anggota baru. Foto lama otomatis dibersihkan bila insert gagal. */
+export async function createMember(
+  payload: Omit<MemberInput, "photo_url">,
+  photoFile: File | null,
+): Promise<DalResult<Member>> {
+  let uploadedPath: string | null = null;
 
-        // 2. Cek apakah ada foto baru
-        const hasNewPhoto =
-            photo instanceof File && photo.size > 0;
-
-        // Tidak boleh hapus dan upload foto sekaligus
-        if (removePhoto && hasNewPhoto) {
-            return errorResponse(
-                400,
-                "Tidak dapat menghapus dan mengganti foto secara bersamaan"
-            );
-        }
-
-        // 3. Data yang akan di-update
-        const updateData: Record<string, unknown> = {
-            name,
-            role,
-            social_links,
-            points
-        };
-
-        // =========================================
-        // KONDISI A: User upload foto baru
-        // =========================================
-        if (hasNewPhoto) {
-            const newFileName = await uploadImage(photo);
-
-            updateData.photo_url = newFileName;
-
-            // Update database terlebih dahulu
-            const { data, error } = await supabaseAdmin
-                .from("members")
-                .update(updateData)
-                .eq("id", id)
-                .select()
-                .single();
-
-            if (error) {
-                // Kalau DB gagal, hapus foto baru
-                await deleteImage(newFileName);
-
-                return errorResponse(
-                    500,
-                    error.message
-                );
-            }
-
-            // Setelah DB berhasil, hapus foto lama
-            if (oldPhoto) {
-                await deleteImage(oldPhoto);
-            }
-
-            return response(
-                200,
-                "Berhasil mengubah data anggota DSC",
-                data
-            );
-        }
-
-        // =========================================
-        // KONDISI B: User ingin menghapus foto
-        // =========================================
-        if (removePhoto) {
-
-            if (oldPhoto) {
-                await deleteImage(oldPhoto);
-            }
-
-            updateData.photo_url = null;
-        }
-
-        // =========================================
-        // KONDISI C:
-        // Tidak ada foto baru dan tidak hapus foto
-        // → photo_url tidak disentuh
-        // =========================================
-
-        const { data, error } = await supabaseAdmin
-            .from("members")
-            .update(updateData)
-            .eq("id", id)
-            .select()
-            .single();
-
-        if (error) {
-            return errorResponse(
-                500,
-                error.message
-            );
-        }
-
-        return response(
-            200,
-            "Berhasil mengubah data anggota DSC",
-            data
-        );
-
-    } catch (error) {
-        console.error(error);
-
-        return errorResponse(
-            500,
-            error instanceof Error
-                ? error.message
-                : "Gagal mengubah data anggota"
-        );
+  try {
+    if (photoFile) {
+      uploadedPath = await uploadImage(photoFile);
     }
-};
 
-
-export const DeleteMemberById = async (id: string) => {
     const { data, error } = await supabaseAdmin
-        .from('members')
-        .delete()
-        .eq("id", id)
-        .select()
-        .single()
+      .from("members")
+      .insert({
+        name: payload.name,
+        role: payload.role,
+        social_links: payload.social_links,
+        points: payload.points,
+        photo_url: uploadedPath,
+      })
+      .select(MEMBER_COLUMNS)
+      .single();
 
     if (error) {
-        return errorResponse(500, error.message)
+      // Jangan tinggalkan file yatim di storage kalau baris DB gagal dibuat.
+      if (uploadedPath) await deleteImage(uploadedPath).catch(() => {});
+      return dalFail(error, "Gagal menambahkan anggota");
     }
-    return response(200, "Berhasil menghapus data", data)
+
+    return dalOk(mapMember(data as Member));
+  } catch (err) {
+    if (uploadedPath) await deleteImage(uploadedPath).catch(() => {});
+    return dalFail(err, "Gagal menambahkan anggota");
+  }
+}
+
+/**
+ * Mengubah data anggota.
+ *
+ * Urutan operasi sengaja begini: DB dulu, file belakangan.
+ * Kalau DB gagal → foto baru yang sudah terunggah dihapus.
+ * Kalau DB sukses → foto lama baru dihapus.
+ */
+export async function updateMemberById(
+  id: string,
+  payload: Omit<MemberInput, "photo_url">,
+  photoFile: File | null,
+  removePhoto: boolean,
+): Promise<DalResult<Member>> {
+  let uploadedPath: string | null = null;
+
+  try {
+    const { data: existing, error: findError } = await supabaseAdmin
+      .from("members")
+      .select("id, photo_url")
+      .eq("id", id)
+      .single();
+
+    if (isNotFoundError(findError)) {
+      return dalFail(new Error("Anggota tidak ditemukan."), "Anggota tidak ditemukan.");
+    }
+    if (findError) return dalFail(findError, "Gagal membaca data anggota");
+
+    if (photoFile && removePhoto) {
+      return dalFail(
+        new Error("Tidak bisa menghapus dan mengganti foto secara bersamaan."),
+        "Operasi foto tidak valid.",
+      );
+    }
+
+    const oldPhotoPath = (existing?.photo_url as string | null) ?? null;
+
+    const updateData: Record<string, unknown> = {
+      name: payload.name,
+      role: payload.role,
+      social_links: payload.social_links,
+      points: payload.points,
+    };
+
+    if (photoFile) {
+      uploadedPath = await uploadImage(photoFile);
+      updateData.photo_url = uploadedPath;
+    } else if (removePhoto) {
+      updateData.photo_url = null;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("members")
+      .update(updateData)
+      .eq("id", id)
+      .select(MEMBER_COLUMNS)
+      .single();
+
+    if (error) {
+      if (uploadedPath) await deleteImage(uploadedPath).catch(() => {});
+      return dalFail(error, "Gagal mengubah data anggota");
+    }
+
+    if (oldPhotoPath && (photoFile || removePhoto)) {
+      await deleteImage(oldPhotoPath).catch(() => {});
+    }
+
+    return dalOk(mapMember(data as Member));
+  } catch (err) {
+    if (uploadedPath) await deleteImage(uploadedPath).catch(() => {});
+    return dalFail(err, "Gagal mengubah data anggota");
+  }
+}
+
+export async function deleteMemberById(id: string): Promise<DalResult<Member>> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("members")
+      .delete()
+      .eq("id", id)
+      .select(MEMBER_COLUMNS)
+      .single();
+
+    if (isNotFoundError(error)) {
+      return dalFail(new Error("Anggota tidak ditemukan."), "Anggota tidak ditemukan.");
+    }
+    if (error) return dalFail(error, "Gagal menghapus anggota");
+
+    const member = mapMember(data as Member);
+    if (member.photo_url) {
+      await deleteImage(member.photo_url).catch(() => {});
+    }
+
+    return dalOk(member);
+  } catch (err) {
+    return dalFail(err, "Gagal menghapus anggota");
+  }
 }

@@ -1,50 +1,78 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import type { Feedback } from "@/lib/types";
+import { isEmail, optionalText, requireText } from "@/utils/validate";
+import { dalFail, dalOk, type DalResult } from "./types";
+
+/**
+ * Data Access Layer tabel `feedback` (kotak kritik & saran).
+ *
+ * Kirim feedback = publik (anon + policy insert-only).
+ * Baca daftar feedback = admin (service role + dilindungi proxy).
+ */
+
+const FEEDBACK_COLUMNS = "id, sender_name, sender_email, message, created_at";
 
 export interface FeedbackInput {
-  sender_name?: string;  // Opsional
-  sender_email?: string; // Opsional
-  message: string;       // Wajib
+  sender_name?: unknown;
+  sender_email?: unknown;
+  message: unknown;
 }
 
-/**
- * Menyimpan feedback baru ke database (Public)
- */
-export async function createFeedback(payload: FeedbackInput) {
-  // Karena kolom sender_name bernilai NOT NULL pada schema.sql,
-  // jika pengirim tidak mengisi nama, otomatis diset menjadi 'Anonymous'.
-  const senderName = payload.sender_name?.trim() || 'Anonymous';
+export async function createFeedback(input: FeedbackInput): Promise<DalResult<Feedback>> {
+  try {
+    const message = requireText(input.message, "Pesan", { max: 5_000 });
 
-  const { data, error } = await supabase
-    .from('feedback')
-    .insert([
-      {
-        sender_name: senderName,
-        sender_email: payload.sender_email?.trim() || null,
-        message: payload.message.trim(),
-      },
-    ])
-    .select()
-    .single();
+    const email = optionalText(input.sender_email, 255);
+    if (email && !isEmail(email)) {
+      throw new Error("Format email tidak valid.");
+    }
 
-  if (error) {
-    throw new Error(error.message);
+    const { data, error } = await supabase
+      .from("feedback")
+      .insert({
+        // Kolom sender_name NOT NULL — kalau kosong jadi "Anonymous".
+        sender_name: optionalText(input.sender_name, 255) ?? "Anonymous",
+        sender_email: email,
+        message,
+      })
+      .select(FEEDBACK_COLUMNS)
+      .single();
+
+    if (error) return dalFail(error, "Gagal mengirim feedback");
+    return dalOk(data as Feedback);
+  } catch (err) {
+    return dalFail(err, "Gagal mengirim feedback");
   }
-
-  return data;
 }
 
-/**
- * Mengambil semua data feedback dari database (Admin)
- */
-export async function getAllFeedbacks() {
-  const { data, error } = await supabase
-    .from('feedback')
-    .select('id, sender_name, sender_email, message, created_at')
-    .order('created_at', { ascending: false });
+export async function getAllFeedbacks(limit = 100): Promise<DalResult<Feedback[]>> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("feedback")
+      .select(FEEDBACK_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(Math.min(Math.max(limit, 1), 500));
 
-  if (error) {
-    throw new Error(error.message);
+    if (error) return dalFail(error, "Gagal mengambil data feedback");
+    return dalOk((data ?? []) as Feedback[]);
+  } catch (err) {
+    return dalFail(err, "Gagal mengambil data feedback");
   }
+}
 
-  return data;
+export async function deleteFeedbackById(id: string): Promise<DalResult<Feedback>> {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("feedback")
+      .delete()
+      .eq("id", id)
+      .select(FEEDBACK_COLUMNS)
+      .single();
+
+    if (error) return dalFail(error, "Gagal menghapus feedback");
+    return dalOk(data as Feedback);
+  } catch (err) {
+    return dalFail(err, "Gagal menghapus feedback");
+  }
 }

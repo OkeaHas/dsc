@@ -1,48 +1,44 @@
-import { NextResponse } from 'next/server';
-import { getAllNews, createNews } from '@/server/news';
+import type { NextRequest } from "next/server";
+import { createNews, getAllNews } from "@/server/news";
+import { apiError, statusFromError } from "@/utils/api-error";
+import { pickFile, pickLimit, parseRequest } from "@/utils/request";
+import { errorResponse, response } from "@/utils/response";
 
-// GET: Publik (Menampilkan semua berita)
-export async function GET() {
-  const { data, error } = await getAllNews();
-  
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
-}
-
-// POST: Terproteksi Middleware (Menambah berita baru)
-export async function POST(request: Request) {
+/** GET /api/news — publik: daftar berita terbaru. */
+export async function GET(req: NextRequest) {
   try {
-    const body = await request.json();
-    const { data, error } = await createNews(body);
+    const limit = pickLimit(req.nextUrl.searchParams.get("limit"), { fallback: 50, max: 100 });
+    const { data, error } = await getAllNews(limit);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    return NextResponse.json(data, { status: 201 });
-  } catch (err) {
-    return NextResponse.json({ error: 'Format request tidak valid' }, { status: 400 });
-import { NextRequest } from "next/server";
-import { getAllNews, createNews } from "@/server/news";
-import { response, errorResponse } from "@/utils/response";
-
-export async function GET() {
-  try {
-    const data = await getAllNews();
+    if (error) return errorResponse(statusFromError(error), error.message);
     return response(200, "Berhasil mengambil daftar berita", data);
-  } catch (error: any) {
-    return errorResponse(500, error.message || "Gagal mengambil data berita");
+  } catch (error) {
+    return apiError(error, "Gagal mengambil daftar berita");
   }
 }
 
+/**
+ * POST /api/news — admin.
+ * JSON: { title, slug?, content, cover_image_url? }
+ * form-data: sama, tapi `cover_image` boleh berupa file.
+ *
+ * `slug` opsional — kalau tidak dikirim, dibuat otomatis dari judul.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const { fields, files } = await parseRequest(req);
 
-    if (!body.title || !body.slug || !body.content) {
-      return errorResponse(400, "Judul, slug, dan konten wajib diisi");
-    }
+    const { data, error } = await createNews({
+      title: fields.title as string,
+      slug: fields.slug as string | undefined,
+      content: fields.content as string,
+      cover_image_url: (fields.cover_image_url as string | null) ?? null,
+      coverFile: pickFile(files, "cover_image", "cover"),
+    });
 
-    const newNews = await createNews(body);
-    return response(201, "Berita berhasil dibuat", newNews);
-  } catch (error: any) {
-    return errorResponse(500, error.message || "Gagal menambahkan berita");
+    if (error) return errorResponse(statusFromError(error), error.message);
+    return response(201, "Berita berhasil dibuat", data);
+  } catch (error) {
+    return apiError(error, "Gagal menambahkan berita");
   }
 }

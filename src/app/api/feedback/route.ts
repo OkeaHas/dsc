@@ -1,47 +1,62 @@
-import { NextRequest } from 'next/server';
-import { createFeedback, getAllFeedbacks } from '@/server/feedback';
-import { response, errorResponse } from '@/utils/response';
+import type { NextRequest } from "next/server";
+import { createFeedback, getAllFeedbacks } from "@/server/feedback";
+import { apiError, statusFromError } from "@/utils/api-error";
+import { pickLimit, parseRequest } from "@/utils/request";
+import { errorResponse, response } from "@/utils/response";
+import { requireUuid } from "@/utils/validate";
+import { deleteFeedbackById } from "@/server/feedback";
 
 /**
- * GET /api/feedback
- * Mengambil semua data feedback (Khusus Admin / Protected oleh Middleware)
+ * GET /api/feedback — ADMIN (dibatasi src/proxy.ts).
+ * Hanya admin yang boleh membaca kotak masuk kritik & saran.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const feedbacks = await getAllFeedbacks();
-    return response(200, 'Berhasil mengambil data feedback', feedbacks);
-  } catch (error: any) {
-    return errorResponse(
-      500,
-      error.message || 'Gagal mengambil data feedback'
-    );
+    const limit = pickLimit(req.nextUrl.searchParams.get("limit"), {
+      fallback: 100,
+      max: 500,
+    });
+
+    const { data, error } = await getAllFeedbacks(limit);
+    if (error) return errorResponse(statusFromError(error), error.message);
+
+    return response(200, "Berhasil mengambil data feedback", data);
+  } catch (error) {
+    return apiError(error, "Gagal mengambil data feedback");
   }
 }
 
 /**
- * POST /api/feedback
- * Mengirimkan feedback / kritik & saran baru (Public)
+ * POST /api/feedback — PUBLIK.
+ * Body: { message (wajib), sender_name?, sender_email? }
  */
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const { fields } = await parseRequest(req);
 
-    // Validasi: Pesan feedback wajib diisi
-    if (!body.message || typeof body.message !== 'string' || !body.message.trim()) {
-      return errorResponse(400, 'Pesan feedback (message) wajib diisi');
-    }
-
-    const newFeedback = await createFeedback({
-      sender_name: body.sender_name || body.name,
-      sender_email: body.sender_email || body.email,
-      message: body.message,
+    const { data, error } = await createFeedback({
+      message: fields.message,
+      sender_name: fields.sender_name ?? fields.name,
+      sender_email: fields.sender_email ?? fields.email,
     });
 
-    return response(201, 'Feedback berhasil dikirimkan', newFeedback);
-  } catch (error: any) {
-    return errorResponse(
-      500,
-      error.message || 'Gagal mengirimkan feedback'
-    );
+    if (error) return errorResponse(statusFromError(error), error.message);
+    return response(201, "Terima kasih! Kritik & saran kamu sudah kami terima.", data);
+  } catch (error) {
+    return apiError(error, "Gagal mengirim feedback");
+  }
+}
+
+/** DELETE /api/feedback?id=... — ADMIN: hapus satu feedback. */
+export async function DELETE(req: NextRequest) {
+  try {
+    const id = requireUuid(req.nextUrl.searchParams.get("id"), "id feedback");
+
+    const { data, error } = await deleteFeedbackById(id);
+    if (error) return errorResponse(statusFromError(error), error.message);
+
+    return response(200, "Feedback berhasil dihapus", data);
+  } catch (error) {
+    return apiError(error, "Gagal menghapus feedback");
   }
 }

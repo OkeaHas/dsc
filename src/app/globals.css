@@ -1,26 +1,270 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Token desain DSC
+   Palet diambil langsung dari desain Figma (dibaca pixel per pixel dari
+   prototipe halaman "UKM Developer Student Club"):
+     merah   #A80C0C  → judul, logo, garis aktif
+     oranye  #FF990B  → panel Tentang Kami, judul section, tombol utama
+     flame   #F25525  → pasangan gradien merah→oranye di tepi ombak
+     peach   #FDE3D3  → gradien lembut belakang hero
+   Semua warna ditulis sebagai CSS variable supaya tema gelap/terang cuma
+   menukar nilai di satu tempat, dan komponen tetap pakai nama semantik
+   (bg-surface, text-muted) alih-alih nama warna mentah.
+
+   PENTING — komentar di dalam berkas depan ikut dipindai Tailwind.
+   Tailwind v4 membaca SELURUH teks berkas sumber sebagai kandidat kelas,
+   termasuk komentar. Jangan pernah menulis contoh kelas arbitrary dengan
+   nilai yang belum lengkap di komentar (contoh bentuknya: kelas padding
+   bawah berisi perhitungan env() yang bagian env-nya masih ditulis
+   bertitik-titik): teks itu diubah jadi aturan CSS nyata, lalu Turbopack
+   gagal mem-parse-nya. Tulis nilainya utuh, atau jangan tulis polanya.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --surface: #ffffff;
+  --surface-2: #f6f3f0;
+  --foreground: #1a1412;
+  --muted: #6b625e;
+  --border: #e8e2dc;
+
+  --brand: #a80c0c;
+  --brand-strong: #8a0a0a;
+  --brand-soft: #fce9e4;
+
+  --accent: #ff990b;
+  --accent-strong: #e88500;
+  --accent-soft: #fff1d9;
+  --flame: #f25525;
+  --peach: #fde3d3;
+
+  --ink: #1a1412;
+  --success: #177a4a;
+  --danger: #b3261e;
+
+  /* Tinggi bilah navigasi lengket di atas — dipakai scroll-margin anchor. */
+  --header-h: 4.5rem;
+}
+
+/*
+ * Desain aslinya cuma versi terang. Mode gelap tetap dipertahankan supaya
+ * pengguna yang memaksa gelap di sistemnya tidak disilaukan halaman putih —
+ * warnanya digeser ke marun hangat, bukan abu dingin, biar tetap satu keluarga
+ * dengan palet merah-oranye di atas.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #120d0c;
+    --surface: #1a1312;
+    --surface-2: #241b19;
+    --foreground: #f7f1ec;
+    --muted: #b9a9a2;
+    --border: #2e2321;
+
+    --brand: #ff5b4a;
+    --brand-strong: #ff7a63;
+    --brand-soft: #3a1712;
+
+    --accent: #ffb03a;
+    --accent-strong: #ffc466;
+    --accent-soft: #3b2a0e;
+    --flame: #ff7043;
+    --peach: #3a241c;
+
+    --ink: #120d0c;
+    --success: #52d08c;
+    --danger: #ff6b60;
+  }
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-flame: var(--flame);
+  --color-peach: var(--peach);
+
+  --color-ink: var(--ink);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-poppins);
+  --font-script: var(--font-caveat);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ═══════════════════════════════════════════════════════════════════════════
+   Dasar
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Anchor dari navbar di-scroll halus, bukan lompat. */
+  scroll-behavior: smooth;
 }
 
 body {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Cegah halaman "kegeser" ke samping di layar sempit gara-gara satu elemen
+     yang lebih lebar dari viewport. */
+  overflow-x: hidden;
+}
+
+/* Semua heading pakai Poppins — bentuknya bulat tebal, sama seperti desain. */
+h1,
+h2,
+h3,
+h4,
+.dsc-display {
+  font-family: var(--font-poppins), var(--font-geist-sans), ui-sans-serif,
+    system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+/*
+ * Setiap section yang jadi tujuan anchor diberi margin gulir, supaya judulnya
+ * tidak tertutup navbar lengket (di HP navbar lebih pendek).
+ */
+.dsc-anchor {
+  scroll-margin-top: calc(var(--header-h) + 0.75rem);
+}
+
+/* Latar redup di belakang sheet menu HP. */
+.dsc-backdrop {
+  background: color-mix(in oklab, #000 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/* Sembunyikan scrollbar pada deretan chip horizontal (mis. filter kategori)
+   tanpa mematikan kemampuan scroll-nya. */
+.dsc-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.dsc-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Isi artikel berita yang dikirim admin sebagai teks biasa. */
+.dsc-prose {
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+.dsc-prose p + p {
+  margin-top: 1rem;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Ornamen khas halaman
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Gradien peach di belakang hero (kanan bawah pada desain). */
+.dsc-hero-glow {
+  background:
+    radial-gradient(
+      110% 90% at 88% 78%,
+      var(--peach) 0%,
+      color-mix(in oklab, var(--peach) 40%, transparent) 42%,
+      transparent 72%
+    ),
+    var(--background);
+}
+
+/* Taburan titik oranye (dipakai di kiri bawah hero). */
+.dsc-dotgrid {
+  background-image: radial-gradient(
+    color-mix(in oklab, var(--accent) 65%, transparent) 1.6px,
+    transparent 1.7px
+  );
+  background-size: 14px 14px;
+}
+
+/* Bingkai foto ala kartu Polaroid. */
+.dsc-polaroid {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 18px 40px -24px color-mix(in oklab, var(--ink) 45%, transparent),
+    0 2px 0 color-mix(in oklab, var(--ink) 6%, transparent);
+}
+
+/* Catatan tempel oranye untuk testimoni. */
+.dsc-note {
+  background: var(--accent);
+  color: #3a1d00;
+  box-shadow: 0 16px 30px -18px color-mix(in oklab, var(--ink) 60%, transparent);
+}
+
+.dsc-note-soft {
+  background: var(--accent-soft);
+  color: var(--foreground);
+}
+
+/* Kartu mockup ponsel (kanan section Feedback). */
+.dsc-phone {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow:
+    0 40px 70px -40px color-mix(in oklab, var(--ink) 55%, transparent),
+    0 0 0 6px color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+/* Tombol utama: pil oranye dengan bayangan lembut. */
+.dsc-btn-primary {
+  background: var(--accent);
+  color: #472200;
+  box-shadow: 0 12px 26px -14px color-mix(in oklab, var(--accent) 90%, transparent);
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
+}
+.dsc-btn-primary:hover {
+  filter: brightness(1.05);
+}
+.dsc-btn-primary:active {
+  transform: translateY(1px);
+}
+
+/* Tinggi minimum area sentuh di HP: 44px (panduan aksesibilitas). */
+.dsc-tap {
+  min-height: 44px;
+}
+
+/* Tekstur gelombang di tepi section — SVG-nya di komponen, ini cuma wadah
+   supaya tidak ada celah putih di antara dua section. */
+.dsc-wave {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Hormati preferensi pengguna yang tidak ingin animasi. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

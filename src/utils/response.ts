@@ -1,19 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
-// Fungsi untuk response BERHASIL
-export function response(statusCode: number, message: string, data?: any) {
-    return NextResponse.json({
-        status: true, // Otomatis true
-        message,
-        data: data || null // Jika tidak ada data yang dikirim, jadikan null
-    }, { status: statusCode });
+/**
+ * Bentuk response standar seluruh API DSC:
+ * { status, message, data }
+ */
+
+/** Response BERHASIL. */
+export function response<T>(statusCode: number, message: string, data?: T | null) {
+  return NextResponse.json(
+    {
+      status: true,
+      message,
+      data: data ?? null,
+    },
+    { status: statusCode },
+  );
 }
 
-// Fungsi untuk response GAGAL/ERROR
-export function errorResponse(statusCode: number, message: string) {
-    return NextResponse.json({
-        status: false, // Otomatis false
-        message,
-        data: null
-    }, { status: statusCode });
+/** Response GAGAL. */
+export function errorResponse(
+  statusCode: number,
+  message: string,
+  headers?: Record<string, string>,
+) {
+  return NextResponse.json(
+    {
+      status: false,
+      message,
+      data: null,
+    },
+    { status: statusCode, headers },
+  );
+}
+
+/**
+ * Bungkus error tak terduga. Pesan asli dari Postgres tetap diteruskan saat
+ * mode development supaya gampang di-debug, tapi di production ditutup dengan
+ * pesan umum agar struktur tabel tidak bocor ke publik.
+ */
+export function unexpectedError(error: unknown, fallback = "Terjadi kesalahan pada server") {
+  if (process.env.NODE_ENV !== "production" && error instanceof Error && error.message) {
+    return errorResponse(500, error.message);
+  }
+  return errorResponse(500, fallback);
 }
