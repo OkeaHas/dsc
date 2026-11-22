@@ -3,6 +3,7 @@ import {
   IconChat,
   IconHome,
   IconImage,
+  IconNews,
   IconTarget,
   IconTrophy,
   IconUsers,
@@ -27,12 +28,17 @@ export interface NavItem {
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
-/** Urutan section di beranda, sama persis dengan urutan menu di desain. */
+/**
+ * Urutan section di beranda, sama persis dengan urutan menu di desain —
+ * ditambah "Berita" di antara Galeri dan Leaderboard, karena panel admin bisa
+ * menerbitkan berita tapi beranda belum punya tempat untuknya.
+ */
 export const SECTION_ITEMS: NavItem[] = [
   { id: "tentang-kami", label: "Tentang Kami", short: "Tentang", Icon: IconUsers },
   { id: "visi-misi", label: "Visi & Misi", short: "Visi", Icon: IconTarget },
   { id: "anggota", label: "Anggota", short: "Anggota", Icon: IconUsers },
   { id: "galeri", label: "Galeri", short: "Galeri", Icon: IconImage },
+  { id: "kabar", label: "Berita", short: "Berita", Icon: IconNews },
   { id: "leaderboard", label: "Leaderboard", short: "Peringkat", Icon: IconTrophy },
   { id: "feedback", label: "Feedback", short: "Feedback", Icon: IconChat },
 ];
@@ -43,13 +49,18 @@ export const NAV_ITEMS = SECTION_ITEMS;
 /**
  * Yang tampil di tab bar bawah (maksimal 5 — lebih dari itu jadi sempit di HP).
  * "Beranda" di sini berarti menggulir ke paling atas, bukan pindah halaman.
+ *
+ * Empat section isi ada di sini (Anggota, Galeri, Berita, Peringkat) dan
+ * Feedback sengaja tidak: formulir itu tetap terjangkau dari menu lengkap di
+ * header dan dari footer, sementara berita perlu satu ketukan karena isinya
+ * berubah paling sering.
  */
 export const BOTTOM_NAV_ITEMS: NavItem[] = [
   { id: "beranda", label: "Beranda", short: "Beranda", Icon: IconHome },
   { id: "anggota", label: "Anggota", short: "Anggota", Icon: IconUsers },
   { id: "galeri", label: "Galeri", short: "Galeri", Icon: IconImage },
+  { id: "kabar", label: "Berita", short: "Berita", Icon: IconNews },
   { id: "leaderboard", label: "Leaderboard", short: "Peringkat", Icon: IconTrophy },
-  { id: "feedback", label: "Feedback", short: "Feedback", Icon: IconChat },
 ];
 
 /**

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { IconArrowUpRight, IconImage, IconPin } from "@/components/icons";
+import { Muncul } from "@/components/muncul";
 import { JudulSection, Wadah } from "@/components/sections/decor";
 import { EmptyState } from "@/components/ui";
 import { GALERI } from "@/lib/site-content";
@@ -54,13 +55,15 @@ export function Galeri({ events }: { events: Event[] }) {
             />
           </div>
         ) : (
-          <ul className="mt-8 columns-2 gap-3 sm:mt-10 sm:columns-3 sm:gap-4 lg:columns-4">
+          <Muncul delay={140}>
+            <ul className="mt-8 columns-2 gap-3 sm:mt-10 sm:columns-3 sm:gap-4 lg:columns-4">
             {tampil.map((event, index) => (
               <li key={event.id} className="mb-3 break-inside-avoid sm:mb-4">
                 <KartuGaleri event={event} index={index} />
               </li>
             ))}
           </ul>
+          </Muncul>
         )}
       </Wadah>
     </section>

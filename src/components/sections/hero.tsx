@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { IconArrowRight, IconImage, IconUsers } from "@/components/icons";
+import { Muncul } from "@/components/muncul";
 import { HERO, KONTAK } from "@/lib/site-content";
 import { Wadah } from "@/components/sections/decor";
 
@@ -11,6 +12,10 @@ import { Wadah } from "@/components/sections/decor";
  * bukan kotak rusak. Begitu panitia menaruh berkas di
  * `public/images/hero-club.jpg` dan mengisi `HERO.foto`, fotonya langsung
  * dipakai tanpa perubahan lain.
+ *
+ * Isi hero muncul bertingkat saat halaman dibuka (label → judul → paragraf →
+ * tombol, foto menyusul di tengah) — animasi masuk, bukan animasi saat digulir,
+ * karena bagian ini sudah terlihat sejak detik pertama.
  */
 export function Hero() {
   return (
@@ -24,40 +29,50 @@ export function Hero() {
       <Wadah className="py-12 sm:py-16 lg:py-20">
         <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-14">
           <div className="min-w-0">
-            <p className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-bold text-brand">
-              <IconUsers className="size-4" />
-              Komunitas Developer Kampus
-            </p>
+            <Muncul>
+              <p className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-bold text-brand">
+                <IconUsers className="size-4" />
+                Komunitas Developer Kampus
+              </p>
+            </Muncul>
 
-            <h1 className="mt-5 text-[2rem] font-extrabold leading-[1.08] text-brand sm:text-5xl lg:text-[3.5rem]">
-              {HERO.judul}
-            </h1>
+            <Muncul delay={90}>
+              <h1 className="mt-5 text-[2rem] font-extrabold leading-[1.08] text-brand sm:text-5xl lg:text-[3.5rem]">
+                {HERO.judul}
+              </h1>
+            </Muncul>
 
-            <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted sm:text-base">
-              {HERO.deskripsi}
-            </p>
+            <Muncul delay={180}>
+              <p className="mt-5 max-w-xl text-sm leading-relaxed text-muted sm:text-base">
+                {HERO.deskripsi}
+              </p>
+            </Muncul>
 
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <a
-                href={`https://wa.me/${KONTAK.whatsappNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="dsc-btn-primary dsc-tap inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-extrabold sm:text-base"
-              >
-                {HERO.ctaLabel}
-                <IconArrowRight className="size-4" />
-              </a>
+            <Muncul delay={260}>
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+                <a
+                  href={`https://wa.me/${KONTAK.whatsappNumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="dsc-btn-primary dsc-tap inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-extrabold sm:text-base"
+                >
+                  {HERO.ctaLabel}
+                  <IconArrowRight className="size-4" />
+                </a>
 
-              <a
-                href="#tentang-kami"
-                className="dsc-tap inline-flex items-center justify-center gap-2 rounded-full border border-border bg-surface px-6 py-3 text-sm font-bold text-foreground transition-colors hover:border-brand hover:text-brand sm:text-base"
-              >
-                Kenali kami
-              </a>
-            </div>
+                <a
+                  href="#tentang-kami"
+                  className="dsc-tap inline-flex items-center justify-center gap-2 rounded-full border border-border bg-surface px-6 py-3 text-sm font-bold text-foreground transition-colors hover:border-brand hover:text-brand sm:text-base"
+                >
+                  Kenali kami
+                </a>
+              </div>
+            </Muncul>
           </div>
 
-          <BingkaiFoto />
+          <Muncul delay={140}>
+            <BingkaiFoto />
+          </Muncul>
         </div>
       </Wadah>
     </section>

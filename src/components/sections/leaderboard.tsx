@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { IconTrophy } from "@/components/icons";
+import { Muncul } from "@/components/muncul";
 import { JudulSection, Wadah } from "@/components/sections/decor";
 import { Avatar, EmptyState } from "@/components/ui";
 import { LEADERBOARD } from "@/lib/site-content";
@@ -39,7 +40,8 @@ export function Leaderboard({ entries }: { entries: LeaderboardEntry[] }) {
             />
           </div>
         ) : (
-          <div className="mt-9 grid gap-5 sm:mt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-6">
+          <Muncul delay={140}>
+            <div className="mt-9 grid gap-5 sm:mt-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-6">
             {/* Panel grafik batang */}
             <div className="rounded-3xl border border-border bg-surface p-5 sm:p-7">
               <p className="flex items-center gap-2 text-sm font-bold text-foreground">
@@ -116,6 +118,7 @@ export function Leaderboard({ entries }: { entries: LeaderboardEntry[] }) {
               </Link>
             </div>
           </div>
+          </Muncul>
         )}
       </Wadah>
     </section>

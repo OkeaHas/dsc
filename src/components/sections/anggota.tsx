@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Muncul } from "@/components/muncul";
 import { JudulSection, Wadah } from "@/components/sections/decor";
 import { EmptyState } from "@/components/ui";
 import { ANGGOTA } from "@/lib/site-content";
@@ -30,13 +31,15 @@ export function Anggota({ members }: { members: Member[] }) {
             />
           </div>
         ) : (
-          <ul className="mt-9 grid grid-cols-2 gap-4 sm:mt-12 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-6">
+          <Muncul delay={140}>
+            <ul className="mt-9 grid grid-cols-2 gap-4 sm:mt-12 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-6">
             {members.slice(0, 12).map((member, index) => (
               <li key={member.id} className="min-w-0">
                 <KartuPolaroid member={member} index={index} />
               </li>
             ))}
           </ul>
+          </Muncul>
         )}
       </Wadah>
     </section>

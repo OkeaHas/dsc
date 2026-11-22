@@ -88,10 +88,12 @@ src/
 │   ├── error.tsx            Error boundary
 │   ├── loading.tsx          Skeleton saat memuat
 │   ├── not-found.tsx        Halaman 404
+│   ├── robots.ts            robots.txt — larang /admin & /api
+│   ├── sitemap.ts           sitemap.xml — halaman tetap saja
 │   └── api/                 Endpoint REST (lihat tabel di bawah)
 ├── components/              Komponen tampilan
 │   ├── sections/            Section beranda (hero, tentang, visi-misi, anggota,
-│   │                        galeri, leaderboard, feedback, banner CTA)
+│   │                        galeri, kabar, leaderboard, feedback, banner CTA)
 │   │   └── decor.tsx        Potongan bersama: Eyebrow, JudulSection, Wadah, ombak
 │   ├── cards.tsx            Kartu kegiatan/berita/anggota + baris peringkat
 │   ├── ui.tsx               Primitif: Card, Badge, Avatar, EmptyState, dll.
@@ -127,10 +129,20 @@ Tampilan mengikuti desain Figma dari desainer tim: beranda adalah **satu halaman
 |---|---|
 | Palet | merah `#A80C0C`, oranye `#FF990B`, flame `#F25525`, peach `#FDE3D3` — semuanya token CSS di `src/app/globals.css` |
 | Judul | Poppins (`--font-display`) lewat `next/font`; badan teks Geist |
-| Section | `#beranda` → `#tentang-kami` → `#visi-misi` → `#anggota` → `#galeri` → `#leaderboard` → `#feedback` → banner CTA |
+| Section | `#beranda` → `#tentang-kami` → `#visi-misi` → `#anggota` → `#galeri` → `#kabar` → `#leaderboard` → `#feedback` → banner CTA |
+| Kabar Terbaru | Satu section **tambahan** di luar desain: tiga berita terakhir. Panel admin bisa menerbitkan berita, jadi beranda perlu pintu menuju `/news` — kalau tidak, tulisan panitia tidak pernah dilihat pengunjung |
 | Teks & kontak | Semua narasi tetap ada di `src/lib/site-content.ts` — ubah di situ, komponen tidak perlu disentuh |
 | Foto hero | Isi `HERO.foto` dengan path relatif folder `public` (mis. `/images/hero-club.jpg`). Selama kosong, hero memakai bingkai gradien + lambang DSC, bukan gambar rusak |
 | Anggota / Galeri / Leaderboard | Datanya asli dari Supabase; kalau kosong atau koneksi gagal, section menampilkan pesan kosong yang informatif, bukan halaman error |
+
+**Gerak & animasi.**
+
+| Bagian | Perilaku |
+|---|---|
+| Guliran | Halus lewat **Lenis** (roda tetikus saja). Di HP tetap guliran asli sistem — mengakali guliran jari hampir selalu terasa lambat |
+| Muncul saat digulir | Judul section muncul bertingkat: label → judul → deskripsi; isi section menyusul dengan jeda kecil. Dipasang sekali di `decor.tsx` + tiap daftar |
+| Animasi hero | Muncul bertingkat saat halaman dibuka (label → judul → paragraf → tombol + foto) |
+| Penjaga | Pengguna dengan "kurangi gerak" di sistemnya tidak mendapat animasi apa pun, dan tanpa JavaScript semua isi tetap terlihat |
 
 Pembahasan teknis lengkapnya (berkas baru, token warna, penyesuaian HP/tablet) ada di [AUDIT.md](./AUDIT.md) bagian I.
 
@@ -156,6 +168,17 @@ Semua isi situs dikelola dari `/admin` — panitia tidak perlu membuka dashboard
 **Kenapa tidak Supabase Auth.** Untuk kebutuhan panitia UKM, tabel pengguna dan alur undangan email menambah titik gagal tanpa menambah manfaat. Kalau nanti butuh jejak audit per orang (siapa mengubah apa), langkah naiknya jelas: Supabase Auth + tabel `profiles`, dan `wajibAdmin()` jadi satu-satunya tempat yang perlu diubah.
 
 **Unggah gambar.** Form admin mengirim gambar lewat server action; batas badan permintaan dinaikkan ke 4 MB di `next.config.ts`, sementara validasi sebenarnya tetap 2 MB di `src/utils/uploadImage.ts`. Jenis file ditentukan dari MIME type, bukan nama kiriman.
+
+---
+
+## 🔎 SEO
+
+| Berkas | Isi |
+|---|---|
+| `src/app/robots.ts` | `robots.txt`: semua publik boleh diindeks, `/admin` dan `/api` ditutup |
+| `src/app/sitemap.ts` | `sitemap.xml` halaman tetap: beranda, `/news`, `/events`, `/members`, `/leaderboard`, `/feedback` |
+
+Keduanya memakai `getSiteUrl()` (`src/lib/env.ts`) yang membaca `NEXT_PUBLIC_SITE_URL`, dengan cadangan `https://dscmulia.id`. Sitemap sengaja **tidak** membaca database: sitemap disusun saat build, dan satu query di sana membuat build gagal ketika environment variable belum terpasang di mesin/CI — masalah kecil menumbangkan deploy. Alamat detail berita & kegiatan tetap terjangkau crawler lewat daftarnya.
 
 ---
 

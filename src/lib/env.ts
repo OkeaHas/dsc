@@ -55,3 +55,15 @@ export function getAdminPassword(): string {
 export function hasAdminPassword(): boolean {
   return Boolean(process.env.ADMIN_PASSWORD?.trim());
 }
+
+/**
+ * Alamat publik situs — dipakai `robots.ts` dan `sitemap.ts`.
+ *
+ * Tidak wajib diisi: kalau kosong, dipakai alamat produksi yang sudah terdaftar
+ * di footer. Dibuat punya nilai cadangan supaya sitemap/robots tidak pernah
+ * gagal hanya karena satu environment variable belum dipasang.
+ */
+export function getSiteUrl(): string {
+  const nilai = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  return (nilai || "https://dscmulia.id").replace(/\/+$/, "");
+}

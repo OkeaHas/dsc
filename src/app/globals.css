@@ -146,6 +146,33 @@ h4,
   scroll-margin-top: calc(var(--header-h) + 0.75rem);
 }
 
+/* ── Animasi muncul saat digulir (dipakai komponen <Muncul>) ───────────────
+ *
+ * Dua penjaga sekaligus, dan keduanya penting:
+ *
+ *  - `scripting: enabled` — keadaan tersembunyi hanya berlaku kalau peramban
+ *    memang menjalankan JavaScript. Tanpa penjaga ini, pengunjung dengan JS
+ *    mati akan melihat halaman kosong. Peramban lama yang tidak mengenal media
+ *    query ini mengabaikannya, jadi isinya tetap terlihat.
+ *  - `prefers-reduced-motion: no-preference` — pengguna yang meminta gerak
+ *    berkurang mendapat halaman tenang, tanpa animasi sama sekali.
+ */
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .dsc-muncul {
+    opacity: 0;
+    transform: translateY(22px);
+    transition:
+      opacity 0.7s cubic-bezier(0.22, 0.61, 0.36, 1),
+      transform 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+    transition-delay: var(--dsc-delay, 0ms);
+  }
+
+  .dsc-muncul-masuk {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* Latar redup di belakang sheet menu HP. */
 .dsc-backdrop {
   background: color-mix(in oklab, #000 55%, transparent);

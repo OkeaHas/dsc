@@ -144,6 +144,8 @@ export function SiteHeader() {
           />
           <div
             id="menu-hp"
+            /* Lenis tidak ikut campur di area yang bisa digulir sendiri. */
+            data-lenis-prevent
             className="fixed inset-x-0 top-[var(--header-h)] z-50 max-h-[calc(100dvh-var(--header-h))] overflow-y-auto border-b border-border bg-background px-4 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3 sm:px-6"
           >
             <ul className="flex flex-col gap-1">

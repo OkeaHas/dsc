@@ -36,7 +36,7 @@ export const HERO = {
    * dengan "/images/hero-club.jpg". Selama kosong, hero menampilkan bingkai
    * gradien + logo DSC, bukan gambar rusak.
    */
-  foto: "",
+  foto: "/images/hero-club.jpg",
 } as const;
 
 export const TENTANG = {
@@ -92,6 +92,13 @@ export const ANGGOTA = {
   judul: "Meet the Core Team!",
   deskripsi:
     "Kenalin, ini dia orang-orang di balik layar (dan di balik kamera) yang selalu sibuk mastiin semua kegiatan UKM DSC berjalan seru, terdokumentasi dengan apik, dan tentunya bebas error.",
+} as const;
+
+export const KABAR = {
+  judul: "Kabar Terbaru",
+  subjudul: "Catatan & Pengumuman",
+  deskripsi:
+    "Tulisan terbaru dari panitia — rangkuman kegiatan, pengumuman lomba, sampai catatan belajar yang bisa kamu ikuti.",
 } as const;
 
 export const GALERI = {
@@ -163,6 +170,7 @@ export const FOOTER = {
       judul: "Support",
       tautan: [
         { label: "Galeri", id: "galeri" },
+        { label: "Berita", id: "kabar" },
         { label: "Leaderboard", id: "leaderboard" },
         { label: "Feedback", id: "feedback" },
       ],

@@ -3,7 +3,11 @@ import { Caveat, Geist, Geist_Mono, Poppins } from "next/font/google";
 import { BottomNav } from "@/components/bottom-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { SmoothScroll } from "@/components/smooth-scroll";
 import "./globals.css";
+// CSS wajib Lenis (html.lenis, .lenis-stopped, dst.) — disalin dari paketnya
+// supaya tidak perlu menyalin aturannya ke globals.css dan bisa ikut ter-update.
+import "lenis/dist/lenis.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -94,6 +98,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <SiteFooter />
         <BottomNav />
+        {/* Guliran halus (Lenis) — tidak aktif di /admin dan tidak aktif kalau
+            pengguna meminta gerak berkurang. */}
+        <SmoothScroll />
       </body>
     </html>
   );

@@ -368,3 +368,65 @@ Halaman masuk ditaruh di luar route group `src/app/admin/(panel)/` — kalau iku
 7. **Batas badan server action 4 MB** di `next.config.ts` (bawaan Next 1 MB), sementara validasi gambar tetap 2 MB.
 
 **Yang belum diverifikasi:** `next build`/`next dev` dijalankan olehmu (bagian kamu). Dari sisi saya: `npx tsc --noEmit` dan `npx eslint .` bersih (0 error, 0 warning) setelah seluruh berkas panel ditambahkan.
+
+---
+
+## L. KABAR TERBARU & SEO
+
+**Masalah yang dilaporkan:** berita yang terbit di panel admin tidak muncul di situs publik.
+
+**Hasil penelusuran** — bukan masalah data, melainkan tidak adanya jalan:
+
+1. Data dan RLS sehat. Diuji dengan kunci anon (kunci yang sama dipakai halaman publik): `GET /rest/v1/news` berbalas HTTP 200 berisi baris yang sama persis dengan yang dilihat service role. Jadi publik memang boleh membaca berita.
+2. Beranda tidak punya section berita sama sekali — susunannya Hero, Tentang, Visi & Misi, Anggota, Galeri, Leaderboard, Feedback, CTA.
+3. Tidak ada satu pun tautan menuju `/news`. Navbar dan footer hanya berisi anchor section; satu-satunya tautan ke `/news` ada di dalam halaman berita itu sendiri. Halaman itu jadi pulau — isinya benar, tapi tak bisa dijangkau.
+
+**Temuan sampingan soal desain.** Keenam frame prototipe yang belum dipetakan dibaca ulang untuk mencari menu "Berita". Ternyata **frame 1–5 bukan website DSC**: isinya aplikasi monitoring kebocoran gas LPG ("Nota Aplikasi", alarm 422 ppm, tombol "TUTUP KATUP", riwayat kejadian, pengaturan). File Figma itu memuat dua proyek berbeda; yang DSC hanya frame 6 (9404 px) dan 7 (9176 px) — keduanya beranda, versi lama dan versi final. Navbar desain pun hanya enam item, tanpa "Berita": fitur berita tidak pernah ada di desain.
+
+**Pilihan yang diambil (keputusan Rengga): opsi A.** Berita diberi tempat di beranda alih-alih dibiarkan jadi arsip.
+
+| Perubahan | Berkas |
+|---|---|
+| Section baru `#kabar` — tiga berita terakhir + tombol "Semua berita" | `src/components/sections/kabar.tsx` (baru) |
+| Teks section | `KABAR` di `src/lib/site-content.ts` |
+| Beranda mengambil `getAllNews(3)` dan merendernya setelah Galeri | `src/app/page.tsx` |
+| Item menu "Berita" di navbar & footer; tab bar HP: Beranda, Anggota, Galeri, Berita, Peringkat | `src/components/nav-items.ts`, `site-content.ts` (`FOOTER.kolom`) |
+| `robots.txt` + `sitemap.xml` | `src/app/robots.ts`, `src/app/sitemap.ts` (baru), `getSiteUrl()` di `src/lib/env.ts` |
+
+**Keputusan yang perlu dicatat**
+
+1. **Tab bar HP melepas "Feedback".** Lima slot sudah penuh; berita dipilih karena isinya berubah paling sering, sedangkan formulir masukan tetap terjangkau dari menu lengkap di header dan dari footer.
+2. **Section kosong tetap dirender** dengan pesan ramah, bukan disembunyikan. Kalau disembunyikan, anchor `#kabar` di menu akan menunjuk ke tempat yang tidak ada — tautan mati lebih buruk daripada section yang jujur kosong.
+3. **Sitemap tanpa database.** Alasan lengkapnya di README bagian SEO.
+4. **Sitemap & robots tahan env kosong** — `getSiteUrl()` punya cadangan, jadi build tidak bisa gagal gara-gara satu variabel opsional.
+
+**Verifikasi.** `getAllNews(3)` dijalankan langsung terhadap database asli (Node 26 mengeksekusi modul `.ts` proyek lewat hook resolve sementara): tanpa error, 1 baris kembali, tanggal terformat "22 Nov 2026", URL sampul terbentuk, ringkasan 160 karakter siap tampil. Lalu `npx tsc --noEmit` = 0 dan `npx eslint .` = 0.
+
+---
+
+## M. GERAK: SMOOTH SCROLL & ANIMASI MUNCUL
+
+**Lenis** (`lenis@1.3.27`) dipasang sebagai satu komponen klien `src/components/smooth-scroll.tsx` di root layout.
+
+| Keputusan | Alasan |
+|---|---|
+| `smoothWheel: true`, `syncTouch` dibiarkan mati | Roda tetikus dihaluskan; HP tetap memakai guliran asli sistem. Mengakali guliran jari hampir selalu terasa lambat dan salah |
+| Tautan anchor ditangani sendiri, opsi `anchors` Lenis **tidak** dipakai | Versi 1.3.27 tidak memanggil `preventDefault()` di jalur itu, jadi peramban melompat dulu lalu Lenis menganimasikan — terasa patah. Handler sendiri: cegat klik → `lenis.scrollTo(elemen)` (tetap menghormati `scroll-margin-top` dari `.dsc-anchor`) → `history.pushState` supaya tautannya bisa dibagikan |
+| Tidak dipasang di `/admin` | Guliran halus terasa menghambat saat mengisi form panjang |
+| Berhenti saat sheet menu HP terbuka | Mengikuti `body.style.overflow` lewat MutationObserver — navbar tidak perlu tahu apa pun soal Lenis |
+| `data-lenis-prevent` di panel menu HP | Area yang bisa digulir sendiri tidak direbut Lenis |
+| Lenis mati kalau `prefers-reduced-motion: reduce` | Sejalan dengan `respectReducedMotion` bawaan; di sini instance-nya bahkan tidak dibuat |
+
+**Animasi muncul** lewat komponen `src/components/muncul.tsx` (IntersectionObserver, sekali jalan). Dipasang di `JudulSection` (jadi semua section otomatis) dan di daftar Anggota/Galeri/Kabar/Leaderboard dengan jeda 140 ms, plus hero yang muncul bertingkat saat halaman dibuka.
+
+Penjaga agar tidak ada isi yang hilang:
+
+1. Keadaan tersembunyi hanya berlaku di dalam `@media (scripting: enabled) and (prefers-reduced-motion: no-preference)`. Tanpa JavaScript → semua terlihat; peramban yang tidak mengenal media query itu → query diabaikan, isi tetap terlihat.
+2. `IntersectionObserver` tidak ada → kelas "masuk" langsung dipasang.
+3. Animasi hanya sekali per elemen; muncul ulang setiap kali digulir naik-turun terasa mengganggu, bukan halus.
+
+**Jebakan yang kena di sini.** `createElement(as, { ref, ... })` untuk elemen dinamis ditolak aturan `react-hooks/refs` ESLint ("Cannot access refs during render"). Solusinya bukan mematikan aturannya, tapi berhenti memakai elemen dinamis: pembungkusnya selalu `<div>`.
+
+**Verifikasi.** `globals.css` dikompilasi ulang lewat PostCSS + Tailwind v4: 62.692 byte, nol kandidat kelas rusak, aturan `@media (scripting: enabled)`, `.dsc-muncul`, dan `.dsc-muncul-masuk` semuanya keluar. CSS paket Lenis (513 byte) memuat `html.lenis` dan `.lenis-stopped`. Lalu `npx tsc --noEmit` = 0 dan `npx eslint .` = 0.
+
+**Yang belum bisa saya pastikan:** rasa gulirannya. Itu baru terbukti di peramban — kecepatan, `duration`, dan besar pergeseran animasi (`translateY(22px)`, 0,7 detik) sengaja kupilih konservatif; kalau terasa terlalu lambat atau terlalu cepat, angkanya ada di `smooth-scroll.tsx` dan `globals.css`.
